@@ -1,0 +1,116 @@
+# Artillery Load Test Configuration
+# Run with: npx artillery run tests/load-test.yml
+
+config:
+  target: "http://localhost:3001"
+  phases:
+    # Warm-up phase: 10 users/sec for 30 seconds
+    - duration: 30
+      arrivalRate: 10
+      name: "Warm-up"
+    # Ramp-up phase: increase to 30 users/sec over 60 seconds
+    - duration: 60
+      arrivalRate: 10
+      rampTo: 30
+      name: "Ramp-up"
+    # Sustained load: 30 users/sec for 60 seconds
+    - duration: 60
+      arrivalRate: 30
+      name: "Sustained load"
+
+  # Variables for test scenarios
+  variables:
+    testEmail: "loadtest@example.com"
+    testPassword: "testpassword123"
+
+  # Default headers
+  defaults:
+    headers:
+      Content-Type: "application/json"
+
+scenarios:
+  # Health check scenario (lightweight)
+  - name: "Health check"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/v1/health"
+
+  # Anonymous exam browsing (simulates non-logged-in users)
+  - name: "Anonymous browsing"
+    weight: 30
+    flow:
+      - get:
+          url: "/api/v1/health"
+      - think: 3
+      - get:
+          url: "/api/v1/stats/questions"
+
+  # Authenticated user starting exam
+  - name: "Start exam flow"
+    weight: 30
+    flow:
+      # Login
+      - post:
+          url: "/api/v1/auth/login"
+          json:
+            email: "{{ testEmail }}"
+            password: "{{ testPassword }}"
+          capture:
+            - json: "$.accessToken"
+              as: "accessToken"
+      - think: 2
+      # Start new exam
+      - post:
+          url: "/api/v1/exam/start"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          json:
+            questionCount: 10
+            timePerQuestion: 90
+          capture:
+            - json: "$.session.id"
+              as: "sessionId"
+      - think: 1
+      # Get exam session
+      - get:
+          url: "/api/v1/exam/{{ sessionId }}"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+
+  # Exam answer submission (simulates active exam taking)
+  - name: "Answer submission"
+    weight: 20
+    flow:
+      # Login
+      - post:
+          url: "/api/v1/auth/login"
+          json:
+            email: "{{ testEmail }}"
+            password: "{{ testPassword }}"
+          capture:
+            - json: "$.accessToken"
+              as: "accessToken"
+      - think: 1
+      # Start exam
+      - post:
+          url: "/api/v1/exam/start"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          json:
+            questionCount: 5
+            timePerQuestion: 90
+          capture:
+            - json: "$.session.id"
+              as: "sessionId"
+            - json: "$.questions[0].id"
+              as: "questionId"
+      - think: 5
+      # Submit answer
+      - post:
+          url: "/api/v1/exam/{{ sessionId }}/answer"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          json:
+            questionId: "{{ questionId }}"
+            selected: "A"

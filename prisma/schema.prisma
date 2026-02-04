@@ -1,0 +1,155 @@
+// Prisma schema for FRCR 2A Exam Platform
+// Run `npx prisma migrate dev` to apply changes
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User role enum
+enum UserRole {
+  user
+  admin
+}
+
+// User model (Phase 6 - Authentication)
+model User {
+  id                  String              @id @default(uuid())
+  email               String              @unique
+  passwordHash        String
+  name                String?
+  role                UserRole            @default(user)
+  subscriptionStatus  String              @default("inactive") // inactive, active, cancelled, past_due
+  subscriptionEnd     DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  examSessions        ExamSession[]
+  passwordResetTokens PasswordResetToken[]
+  refreshTokens       RefreshToken[]
+  subscription        Subscription?
+
+  @@index([email])
+  @@index([subscriptionStatus])
+  @@index([role])
+}
+
+// Subscription model (Phase 7 - Stripe Payments)
+model Subscription {
+  id                   String    @id @default(uuid())
+  userId               String    @unique
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeCustomerId     String    @unique
+  stripeSubscriptionId String?   @unique
+  stripePriceId        String?
+  status               String    @default("inactive") // active, cancelled, past_due, incomplete
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
+  @@index([status])
+}
+
+// Password reset tokens
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  used      Boolean  @default(false)
+
+  @@index([token])
+  @@index([userId])
+}
+
+// Refresh tokens for JWT
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
+}
+
+// Question model - stores all 2,499 FRCR questions
+model Question {
+  id                String   @id // Use original question ID from JSON
+  stem              String   @db.Text
+  optionA           String   @db.Text
+  optionB           String   @db.Text
+  optionC           String   @db.Text
+  optionD           String   @db.Text
+  optionE           String   @db.Text
+  correctAnswer     String   // A, B, C, D, or E
+  explanation       String   @db.Text
+  explanationMatrix Json     // Detailed explanations for each option
+  subtopic          String
+  difficulty        String   // medium, hard, very_hard
+  modality          String?  // CT, MRI, X-ray, etc.
+  learningPoint     String?  @db.Text
+  createdAt         DateTime @default(now())
+
+  // V5 New Fields (added 2026-01-28)
+  module            String?  // CARDIOTHORACIC, MSK, GI, GU, PAEDIATRIC, CNS
+  system            String?  // cardiovascular_thoracic, gastrointestinal, etc.
+  ageGroup          String?  // adult, paediatric, neonatal
+  clinicalContext   String?  // emergency, diagnostic, staging, screening
+  questionType      String?  // anatomy, diagnosis, differential, pattern_recognition
+  imagingPhase      String?  // arterial, portal_venous, delayed, unenhanced
+  task              String?  // diagnosis, finding_interpretation
+  discriminatorUsed String?  @db.Text // Key differentiating feature
+
+  @@index([subtopic])
+  @@index([difficulty])
+  @@index([modality])
+  @@index([subtopic, difficulty])
+  @@index([module])
+  @@index([system])
+  @@index([ageGroup])
+  @@index([questionType])
+}
+
+// Exam session model - tracks user exam attempts
+model ExamSession {
+  id            String    @id @default(uuid())
+  userId        String?   // Nullable for MVP (no auth)
+  user          User?     @relation(fields: [userId], references: [id])
+  questionIds   String[]  // Array of question IDs in exam order
+  totalQuestions Int
+  timeLimit     Int       // Total time in seconds
+  timeRemaining Int?      // Remaining time when paused/completed
+  answers       Json      @default("{}") // {questionId: {selected: "A", flagged: false, timeSpent: 45}}
+  score         Int?      // Final score (number correct)
+  percentage    Float?    // Score percentage
+  status        String    @default("in_progress") // in_progress, completed, abandoned
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+  subtopicFilter String[] @default([]) // Which subtopics were selected
+  difficultyFilter String[] @default([]) // Which difficulties were selected
+
+  @@index([userId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+// Subtopic reference model - for filtering and analytics
+model Subtopic {
+  id            String @id @default(uuid())
+  name          String @unique
+  questionCount Int    @default(0)
+  category      String? // Parent category if applicable
+
+  @@index([name])
+  @@index([category])
+}

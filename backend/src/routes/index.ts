@@ -1,0 +1,5 @@
+export { default as examRoutes } from './examRoutes.js'
+export { default as statsRoutes } from './statsRoutes.js'
+export { default as authRoutes } from './authRoutes.js'
+export { default as adminRoutes } from './adminRoutes.js'
+export { default as stripeRoutes } from './stripeRoutes.js'

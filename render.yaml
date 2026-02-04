@@ -1,0 +1,58 @@
+# Render.com Blueprint Configuration
+# See: https://render.com/docs/blueprint-spec
+
+services:
+  # Backend API Service
+  - type: web
+    name: frcr-api
+    runtime: node
+    region: frankfurt  # EU region for UK users
+    plan: starter  # $7/month - always on
+    buildCommand: npm install && npm run build:backend && npx prisma generate
+    startCommand: npm run start --workspace=backend
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL
+        fromDatabase:
+          name: frcr-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false  # Set manually after frontend deploys
+      - key: STRIPE_SECRET_KEY
+        sync: false  # Set manually
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false  # Set manually
+      - key: STRIPE_PRICE_ID
+        sync: false  # Set manually
+
+  # Frontend Static Site
+  - type: web
+    name: frcr-frontend
+    runtime: static
+    buildCommand: npm install && npm run build:frontend
+    staticPublishPath: frontend/dist
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+    envVars:
+      - key: VITE_API_URL
+        sync: false  # Set to backend URL after deployment
+
+databases:
+  - name: frcr-db
+    databaseName: frcr_exam
+    region: frankfurt
+    plan: starter  # $7/month
+    ipAllowList: []  # Allow all IPs (Render internal network)

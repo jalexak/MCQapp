@@ -1,0 +1,40 @@
+{
+  "name": "frcr-exam-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FRCR 2A Exam Simulation Platform",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:backend": "npm run dev --workspace=backend",
+    "build": "npm run build --workspace=frontend && npm run build --workspace=backend",
+    "build:frontend": "npm run build --workspace=frontend",
+    "build:backend": "npm run build --workspace=backend",
+    "start": "npm run start --workspace=backend",
+    "db:migrate": "npx prisma migrate dev",
+    "db:migrate:deploy": "npx prisma migrate deploy",
+    "db:seed": "npx prisma db seed",
+    "db:studio": "npx prisma studio",
+    "db:import": "npx tsx scripts/importQuestions.ts",
+    "db:make-admin": "npx tsx scripts/makeAdmin.ts",
+    "db:backup": "npx tsx scripts/backupDatabase.ts",
+    "db:verify": "npx tsx scripts/verifyV5.ts",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:load": "npx artillery run tests/load-test.yml"
+  },
+  "prisma": {
+    "seed": "npx tsx scripts/importQuestions.ts"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "tsx": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
