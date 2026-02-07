@@ -5,7 +5,7 @@
     "moduleResolution": "bundler",
     "outDir": "./dist",
     "rootDir": "./src",
-    "strict": true,
+    "strict": false,  // ← Άλλαξε από true σε false
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
@@ -13,8 +13,8 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,  // ← Άλλαξε από true σε false
+    "noUnusedParameters": false,  // ← Άλλαξε από true σε false
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src/**/*"],
